@@ -14,7 +14,7 @@ library(ggplot2)
 
 #------------------------------------------------------------------------------
 # THE MODEL
-final_model = FALSE
+final_model = TRUE
 
 model = metajags_model({
 	#core model
@@ -96,10 +96,10 @@ if (!final_model) {
     jags_fit = run.jags(model$code, data=data_list, monitor=parameters, initlist=inits_list, 
         method="parallel")
 } else {
-#    jags_fit = autorun.jags("model.txt", data=data_list, monitor=parameters, initlist=inits_list,
+#    jags_fit = autorun.jags(model$code, data=data_list, monitor=parameters, initlist=inits_list,
 #        method="parallel", thin.sample=TRUE)    
     jags_fit = run.jags(model$code, data=data_list, monitor=parameters, initlist=inits_list,
-	    adapt=5000, burnin = 100000, sample = 10000, thin=10,
+	    adapt=1000, burnin = 50000, sample = 10000, thin=15,
         method="parallel")
 }
 
