@@ -1,0 +1,257 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta name="generator" content="pandoc" />
+  <title></title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <style type="text/css">
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; }
+code > span.dt { color: #902000; }
+code > span.dv { color: #40a070; }
+code > span.bn { color: #40a070; }
+code > span.fl { color: #40a070; }
+code > span.ch { color: #4070a0; }
+code > span.st { color: #4070a0; }
+code > span.co { color: #60a0b0; font-style: italic; }
+code > span.ot { color: #007020; }
+code > span.al { color: #ff0000; font-weight: bold; }
+code > span.fu { color: #06287e; }
+code > span.er { color: #ff0000; font-weight: bold; }
+  </style>
+  <link rel="stylesheet" href="github-markdown.css" type="text/css" />
+</head>
+<body>
+<h1 id="code-for-how-good-is-85-a-survey-tool-to-connect-classifier-evaluation-to-acceptability-of-accuracy">Code for <em>How good is 85%? A survey tool to connect classifier evaluation to acceptability of accuracy</em></h1>
+<p><a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img
+alt="This work is licensed under a Creative Commons Attribution 4.0 International License" 
+title="This work is licensed under a Creative Commons Attribution 4.0 International License" 
+src="https://i.creativecommons.org/l/by/4.0/88x31.png" /></a> <em>Matthew Kay ([mjskay@uw.edu] (mailto:mjskay@uw.edu)), Shwetak N. Patel ([shwetak@uw.edu] (mailto:shwetak@uw.edu)), and Julie A. Kientz ([jkientz@uw.edu] (mailto:jkientz@uw.edu))</em></p>
+<p>This repository contains analysis code from:</p>
+<p>Kay, Matthew, Patel, Shwetak N., and Kientz, Julie A. How Good is 85%? A Survey Tool to Connect Classifier Evaluation to Acceptability of Accuracy. <em>CHI 2015</em> (upcoming). http://dx.doi.org/10.1145/2702123.2702603</p>
+<p>It is intended to allow others to adopt our tool for generating surveys and modelling acceptability of accuracy. It is currently a work-in-progress. If you have any questions, please email Matthew Kay (above). Also, if you've done something cool with this work, we'd love to hear from you!</p>
+<h2 id="libraries-needed-for-these-analyses">Libraries needed for these analyses</h2>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(runjags)
+<span class="kw">library</span>(tidybayes)
+<span class="kw">library</span>(metajags)
+<span class="kw">library</span>(coda)
+<span class="kw">library</span>(lme4)
+<span class="kw">library</span>(plyr)
+<span class="kw">library</span>(dplyr)
+<span class="kw">library</span>(ggplot2)
+<span class="kw">library</span>(pander)</code></pre>
+<p>Plus some helper functions in <a href="util.R" class="uri">util.R</a>:</p>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="st">&quot;util.R&quot;</span>)</code></pre>
+<h2 id="example-model">Example model</h2>
+<h3 id="fitting-the-model">Fitting the model</h3>
+<p>Example code for fitting a model can be found in <a href="src/application_ui-regression.R" class="uri">src/application_ui-regression.R</a>. Since fitting the model takes some time, for the purposes of this example we will just load the fitted model, which has been saved in <code>src/output/acceptability_ui-model-small-final.RData</code>:</p>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">load</span>(<span class="dt">file=</span><span class="st">&quot;output/acceptability_ui-model-small-final.RData&quot;</span>)</code></pre>
+<h3 id="parameter-estimates">Parameter estimates</h3>
+<p>Let's plot some posterior parameter estimates. First, we extract the sample estimates for <code>b0</code>, <code>b</code>, and <code>alpha</code>:</p>
+<pre class="sourceCode r"><code class="sourceCode r">params =<span class="st"> </span><span class="kw">extract_samples</span>(best_model_chain, b0[application]) %&gt;%
+<span class="st">    </span><span class="kw">left_join</span>(<span class="kw">extract_samples</span>(best_model_chain, b[application])) %&gt;%
+<span class="st">    </span><span class="kw">left_join</span>(<span class="kw">extract_samples</span>(best_model_chain, alpha[application])) </code></pre>
+<pre><code>## Joining by: c(&quot;.sample&quot;, &quot;application&quot;)
+## Joining by: c(&quot;.sample&quot;, &quot;application&quot;)</code></pre>
+<p>This gives us a pretty simple table of estimates. We can look at the first couple of entries to get an idea of its structure:</p>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">head</span>(params)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="center">.sample</th>
+<th align="center">application</th>
+<th align="center">b0</th>
+<th align="center">b</th>
+<th align="center">alpha</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center">1</td>
+<td align="center">alarm_police</td>
+<td align="center">-17.15</td>
+<td align="center">19.7</td>
+<td align="center">0.5921</td>
+</tr>
+<tr class="even">
+<td align="center">2</td>
+<td align="center">alarm_police</td>
+<td align="center">-17.15</td>
+<td align="center">19.78</td>
+<td align="center">0.4897</td>
+</tr>
+<tr class="odd">
+<td align="center">3</td>
+<td align="center">alarm_police</td>
+<td align="center">-16.32</td>
+<td align="center">19.69</td>
+<td align="center">0.54</td>
+</tr>
+<tr class="even">
+<td align="center">4</td>
+<td align="center">alarm_police</td>
+<td align="center">-16.26</td>
+<td align="center">19.24</td>
+<td align="center">0.5334</td>
+</tr>
+<tr class="odd">
+<td align="center">5</td>
+<td align="center">alarm_police</td>
+<td align="center">-16.44</td>
+<td align="center">19.33</td>
+<td align="center">0.5346</td>
+</tr>
+<tr class="even">
+<td align="center">6</td>
+<td align="center">alarm_police</td>
+<td align="center">-16.45</td>
+<td align="center">19.2</td>
+<td align="center">0.5247</td>
+</tr>
+</tbody>
+</table>
+<p>Now we'll plot each parameter in turn, with some useful reference lines:</p>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(params, <span class="kw">aes</span>(<span class="dt">x=</span>application, <span class="dt">y=</span>b)) +
+<span class="st">    </span><span class="kw">geom_hline</span>(<span class="dt">yintercept=</span><span class="dv">0</span>, <span class="dt">lty=</span><span class="st">&quot;dashed&quot;</span>)</code></pre>
+<div class="figure">
+<img src="figure/params_plot-1.png" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
+</div>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(params, <span class="kw">aes</span>(<span class="dt">x=</span>application, <span class="dt">y=</span>b0)) +
+<span class="st">    </span><span class="kw">geom_hline</span>(<span class="dt">yintercept=</span><span class="dv">0</span>, <span class="dt">lty=</span><span class="st">&quot;dashed&quot;</span>)</code></pre>
+<div class="figure">
+<img src="figure/params_plot-2.png" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
+</div>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(params, <span class="kw">aes</span>(<span class="dt">x=</span>application, <span class="dt">y=</span>alpha)) +
+<span class="st">    </span><span class="kw">geom_hline</span>(<span class="dt">yintercept=</span><span class="fl">0.5</span>, <span class="dt">lty=</span><span class="st">&quot;dashed&quot;</span>) +
+<span class="st">    </span><span class="kw">ylim</span>(<span class="dv">0</span>, <span class="dv">1</span>)</code></pre>
+<div class="figure">
+<img src="figure/params_plot-3.png" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
+</div>
+<h3 id="differences-in-alpha">Differences in alpha</h3>
+<p>We can also examine the posterior difference in alpha between each condition. First we extract the samples for alpha, this time in a wide format to facilitate comparison:</p>
+<pre class="sourceCode r"><code class="sourceCode r">alpha =<span class="st"> </span><span class="kw">extract_samples</span>(best_model_chain, alpha[application] |<span class="st"> </span>application)</code></pre>
+<p>Again, let's see the first couple of entries to get an idea of its structure:</p>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">head</span>(alpha)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="center">.sample</th>
+<th align="center">alarm_police</th>
+<th align="center">alarm_text_message</th>
+<th align="center">electricity</th>
+<th align="center">location</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center">1</td>
+<td align="center">0.5921</td>
+<td align="center">0.3691</td>
+<td align="center">0.4414</td>
+<td align="center">0.517</td>
+</tr>
+<tr class="even">
+<td align="center">2</td>
+<td align="center">0.4897</td>
+<td align="center">0.3736</td>
+<td align="center">0.4757</td>
+<td align="center">0.5237</td>
+</tr>
+<tr class="odd">
+<td align="center">3</td>
+<td align="center">0.54</td>
+<td align="center">0.3636</td>
+<td align="center">0.5149</td>
+<td align="center">0.5115</td>
+</tr>
+<tr class="even">
+<td align="center">4</td>
+<td align="center">0.5334</td>
+<td align="center">0.3531</td>
+<td align="center">0.5232</td>
+<td align="center">0.4173</td>
+</tr>
+<tr class="odd">
+<td align="center">5</td>
+<td align="center">0.5346</td>
+<td align="center">0.3579</td>
+<td align="center">0.4768</td>
+<td align="center">0.4805</td>
+</tr>
+<tr class="even">
+<td align="center">6</td>
+<td align="center">0.5247</td>
+<td align="center">0.3622</td>
+<td align="center">0.5002</td>
+<td align="center">0.5493</td>
+</tr>
+</tbody>
+</table>
+<p>Now, for every pair of applications, let's get the posterior distribution of their difference in alpha:</p>
+<pre class="sourceCode r"><code class="sourceCode r">alpha_comparisons =<span class="st"> </span><span class="kw">ldply</span>(<span class="kw">combn</span>(<span class="kw">levels</span>(df$application), <span class="dv">2</span>, <span class="dt">simplify=</span><span class="ot">FALSE</span>), 
+    function(applications) {
+        <span class="kw">data.frame</span>(
+            <span class="dt">applications =</span> <span class="kw">paste</span>(applications, <span class="dt">collapse=</span><span class="st">&quot; - &quot;</span>), 
+            <span class="dt">alpha_difference =</span> alpha[[applications[[<span class="dv">1</span>]]]] -<span class="st"> </span>alpha[[applications[[<span class="dv">2</span>]]]]
+        ) 
+    })</code></pre>
+<p>Which looks like this:</p>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">head</span>(alpha_comparisons)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="center">applications</th>
+<th align="center">alpha_difference</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center">alarm_police - alarm_text_message</td>
+<td align="center">0.223</td>
+</tr>
+<tr class="even">
+<td align="center">alarm_police - alarm_text_message</td>
+<td align="center">0.1161</td>
+</tr>
+<tr class="odd">
+<td align="center">alarm_police - alarm_text_message</td>
+<td align="center">0.1764</td>
+</tr>
+<tr class="even">
+<td align="center">alarm_police - alarm_text_message</td>
+<td align="center">0.1803</td>
+</tr>
+<tr class="odd">
+<td align="center">alarm_police - alarm_text_message</td>
+<td align="center">0.1767</td>
+</tr>
+<tr class="even">
+<td align="center">alarm_police - alarm_text_message</td>
+<td align="center">0.1624</td>
+</tr>
+</tbody>
+</table>
+<p>Finally, we can plot the estimated differences:</p>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(alpha_comparisons, <span class="kw">aes</span>(<span class="dt">x=</span>applications, <span class="dt">y=</span>alpha_difference)) +<span class="st"> </span>
+<span class="st">    </span><span class="kw">geom_hline</span>(<span class="dt">yintercept=</span><span class="dv">0</span>, <span class="dt">lty=</span><span class="st">&quot;dashed&quot;</span>) +
+<span class="st">    </span><span class="kw">ylim</span>(-<span class="fl">0.5</span>, <span class="fl">0.5</span>)</code></pre>
+<div class="figure">
+<img src="figure/alpha_comparison_plot-1.png" alt="plot of chunk alpha_comparison_plot" /><p class="caption">plot of chunk alpha_comparison_plot</p>
+</div>
+<h2 id="citing-this-work">Citing this work</h2>
+<p>Please cite the CHI paper above.</p>
+<h2 id="problems">Problems</h2>
+<p>Should you encounter any issues with this code, contact Matthew Kay (<script type="text/javascript">
+<!--
+h='&#x75;&#x77;&#46;&#x65;&#100;&#x75;';a='&#64;';n='&#x6d;&#106;&#x73;&#x6b;&#x61;&#x79;';e=n+a+h;
+document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'" clas'+'s="em' + 'ail">'+e+'<\/'+'a'+'>');
+// -->
+</script><noscript>&#x6d;&#106;&#x73;&#x6b;&#x61;&#x79;&#32;&#x61;&#116;&#32;&#x75;&#x77;&#32;&#100;&#x6f;&#116;&#32;&#x65;&#100;&#x75;</noscript>). If you have found a bug, please file it <a href="https://github.com/mjskay/acceptability-of-accuracy/issues/new">here</a> with minimal code to reproduce the issue.</p>
+</body>
+</html>

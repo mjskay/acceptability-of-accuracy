@@ -21,10 +21,13 @@ something cool with this work, we'd love to hear from you!
 
 ## Libraries needed for these analyses
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)           #default code chunk options
+panderOptions("table.split.table", Inf)     #don't split wide tables in output
+panderOptions("table.style", "rmarkdown")   #table style that's supported by github
+```
 
-
-
-```r
+```{r libraries, message=FALSE, warning=FALSE, cache=FALSE}
 library(runjags)
 library(tidybayes)
 library(metajags)
@@ -38,8 +41,7 @@ library(pander)
 
 Plus some helper functions in [util.R](util.R):
 
-
-```r
+```{r util}
 source("util.R")
 ```
 
@@ -50,8 +52,7 @@ Example code for fitting a model can be found in [src/application_ui-regression.
 the model takes some time, for the purposes of this example we will just load the fitted model, 
 which has been saved in `src/output/acceptability_ui-model-small-final.RData`:
 
-
-```r
+```{r load_model}
 load(file="output/acceptability_ui-model-small-final.RData")
 ```
 
@@ -60,93 +61,60 @@ load(file="output/acceptability_ui-model-small-final.RData")
 Let's plot some posterior parameter estimates. First, we extract the 
 sample estimates for `b0`, `b`, and `alpha`:
 
-
-```r
+```{r extract_params, warnings=FALSE}
 params = extract_samples(best_model_chain, b0[application]) %>%
     left_join(extract_samples(best_model_chain, b[application])) %>%
     left_join(extract_samples(best_model_chain, alpha[application])) 
 ```
 
-```
-## Joining by: c(".sample", "application")
-## Joining by: c(".sample", "application")
-```
-
 This gives us a pretty simple table of estimates. We can look at the
 first couple of entries to get an idea of its structure:
 
-
-```r
+```{r params_table_1, eval=FALSE}
 head(params)
 ```
 
-
-|  .sample  |  application  |   b0   |   b   |  alpha  |
-|:---------:|:-------------:|:------:|:-----:|:-------:|
-|     1     | alarm_police  | -17.15 | 19.7  | 0.5921  |
-|     2     | alarm_police  | -17.15 | 19.78 | 0.4897  |
-|     3     | alarm_police  | -16.32 | 19.69 |  0.54   |
-|     4     | alarm_police  | -16.26 | 19.24 | 0.5334  |
-|     5     | alarm_police  | -16.44 | 19.33 | 0.5346  |
-|     6     | alarm_police  | -16.45 | 19.2  | 0.5247  |
+```{r params_table_2, echo=FALSE, results='asis'}
+pander(head(params))
+```
 
 Now we'll plot each parameter in turn, with some useful reference lines:
 
-
-```r
+```{r params_plot}
 ggposterior(params, aes(x=application, y=b)) +
     geom_hline(yintercept=0, lty="dashed")
-```
 
-![plot of chunk params_plot](figure/params_plot-1.png) 
-
-```r
 ggposterior(params, aes(x=application, y=b0)) +
     geom_hline(yintercept=0, lty="dashed")
-```
 
-![plot of chunk params_plot](figure/params_plot-2.png) 
-
-```r
 ggposterior(params, aes(x=application, y=alpha)) +
     geom_hline(yintercept=0.5, lty="dashed") +
     ylim(0, 1)
 ```
-
-![plot of chunk params_plot](figure/params_plot-3.png) 
 
 ### Differences in alpha
 
 We can also examine the posterior difference in alpha between each condition. First
 we extract the samples for alpha, this time in a wide format to facilitate comparison:
 
-
-```r
+```{r extract_alpha}
 alpha = extract_samples(best_model_chain, alpha[application] | application)
 ```
 
 Again, let's see the first couple of entries to get an idea of its structure:
 
-
-```r
+```{r alpha_table_1, eval=FALSE}
 head(alpha)
 ```
 
-
-|  .sample  |  alarm_police  |  alarm_text_message  |  electricity  |  location  |
-|:---------:|:--------------:|:--------------------:|:-------------:|:----------:|
-|     1     |     0.5921     |        0.3691        |    0.4414     |   0.517    |
-|     2     |     0.4897     |        0.3736        |    0.4757     |   0.5237   |
-|     3     |      0.54      |        0.3636        |    0.5149     |   0.5115   |
-|     4     |     0.5334     |        0.3531        |    0.5232     |   0.4173   |
-|     5     |     0.5346     |        0.3579        |    0.4768     |   0.4805   |
-|     6     |     0.5247     |        0.3622        |    0.5002     |   0.5493   |
+```{r alpha_table_2, echo=FALSE, results='asis'}
+pander(head(alpha))
+```
 
 Now, for every pair of applications, let's get the posterior distribution
 of their difference in alpha:
 
-
-```r
+```{r alpha_diff}
 alpha_comparisons = ldply(combn(levels(df$application), 2, simplify=FALSE), 
     function(applications) {
         data.frame(
@@ -158,31 +126,21 @@ alpha_comparisons = ldply(combn(levels(df$application), 2, simplify=FALSE),
 
 Which looks like this:
 
-
-```r
+```{r alpha_comp_table_1, eval=FALSE}
 head(alpha_comparisons)
 ```
 
-
-|           applications            |  alpha_difference  |
-|:---------------------------------:|:------------------:|
-| alarm_police - alarm_text_message |       0.223        |
-| alarm_police - alarm_text_message |       0.1161       |
-| alarm_police - alarm_text_message |       0.1764       |
-| alarm_police - alarm_text_message |       0.1803       |
-| alarm_police - alarm_text_message |       0.1767       |
-| alarm_police - alarm_text_message |       0.1624       |
+```{r alpha_comp_table_2, echo=FALSE, results='asis'}
+pander(head(alpha_comparisons))
+```
 
 Finally, we can plot the estimated differences:
 
-
-```r
+```{r alpha_comparison_plot}
 ggposterior(alpha_comparisons, aes(x=applications, y=alpha_difference)) + 
     geom_hline(yintercept=0, lty="dashed") +
     ylim(-0.5, 0.5)
 ```
-
-![plot of chunk alpha_comparison_plot](figure/alpha_comparison_plot-1.png) 
 
 ## Citing this work
 
