@@ -83,12 +83,12 @@ head(params)
 
 |  .sample  |  application  |   b0   |   b   |  alpha  |
 |:---------:|:-------------:|:------:|:-----:|:-------:|
-|     1     | alarm_police  | -17.15 | 19.7  | 0.5921  |
-|     2     | alarm_police  | -17.15 | 19.78 | 0.4897  |
-|     3     | alarm_police  | -16.32 | 19.69 |  0.54   |
-|     4     | alarm_police  | -16.26 | 19.24 | 0.5334  |
-|     5     | alarm_police  | -16.44 | 19.33 | 0.5346  |
-|     6     | alarm_police  | -16.45 | 19.2  | 0.5247  |
+|     1     | alarm_police  | -15.65 | 18.49 | 0.5639  |
+|     2     | alarm_police  | -16.58 | 20.07 | 0.5377  |
+|     3     | alarm_police  | -17.05 | 19.83 | 0.4827  |
+|     4     | alarm_police  | -16.86 | 19.22 | 0.5002  |
+|     5     | alarm_police  | -16.2  | 18.64 | 0.4509  |
+|     6     | alarm_police  | -16.18 | 17.97 | 0.5414  |
 
 Now we'll plot each parameter in turn, with some useful reference lines:
 
@@ -135,12 +135,12 @@ head(alpha)
 
 |  .sample  |  alarm_police  |  alarm_text_message  |  electricity  |  location  |
 |:---------:|:--------------:|:--------------------:|:-------------:|:----------:|
-|     1     |     0.5921     |        0.3691        |    0.4414     |   0.517    |
-|     2     |     0.4897     |        0.3736        |    0.4757     |   0.5237   |
-|     3     |      0.54      |        0.3636        |    0.5149     |   0.5115   |
-|     4     |     0.5334     |        0.3531        |    0.5232     |   0.4173   |
-|     5     |     0.5346     |        0.3579        |    0.4768     |   0.4805   |
-|     6     |     0.5247     |        0.3622        |    0.5002     |   0.5493   |
+|     1     |     0.5639     |        0.2988        |    0.5119     |   0.3859   |
+|     2     |     0.5377     |        0.3567        |    0.4585     |   0.577    |
+|     3     |     0.4827     |        0.3135        |    0.4513     |   0.4802   |
+|     4     |     0.5002     |        0.3772        |    0.4969     |   0.5148   |
+|     5     |     0.4509     |        0.2896        |    0.4851     |   0.5001   |
+|     6     |     0.5414     |        0.3805        |    0.5025     |   0.5161   |
 
 Now, for every pair of applications, let's get the posterior distribution
 of their difference in alpha:
@@ -166,12 +166,12 @@ head(alpha_comparisons)
 
 |           applications            |  alpha_difference  |
 |:---------------------------------:|:------------------:|
-| alarm_police - alarm_text_message |       0.223        |
-| alarm_police - alarm_text_message |       0.1161       |
-| alarm_police - alarm_text_message |       0.1764       |
-| alarm_police - alarm_text_message |       0.1803       |
-| alarm_police - alarm_text_message |       0.1767       |
-| alarm_police - alarm_text_message |       0.1624       |
+| alarm_police - alarm_text_message |       0.2651       |
+| alarm_police - alarm_text_message |       0.181        |
+| alarm_police - alarm_text_message |       0.1692       |
+| alarm_police - alarm_text_message |       0.123        |
+| alarm_police - alarm_text_message |       0.1614       |
+| alarm_police - alarm_text_message |       0.1609       |
 
 Finally, we can plot the estimated differences:
 
