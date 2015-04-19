@@ -23,8 +23,8 @@ something cool with this work, we'd love to hear from you!
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(cache=TRUE)           #default code chunk options
-panderOptions("table.split.table", Inf)     #don't split wide tables in output
-panderOptions("table.style", "rmarkdown")   #table style that's supported by github
+pander::panderOptions("table.split.table", Inf)     #don't split wide tables in output
+pander::panderOptions("table.style", "rmarkdown")   #table style that's supported by github
 ```
 
 ```{r libraries, message=FALSE, warning=FALSE, cache=FALSE}

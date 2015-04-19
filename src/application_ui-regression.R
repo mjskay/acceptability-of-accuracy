@@ -135,5 +135,5 @@ best_model_chain = mcmc_chain[model_number == best_model,]  %>%
     apply_prototypes(df)
 
 #save
-save.image(file=paste0("output/acceptability_ui-model-small", (if (final_model) "-final" else ""), ".RData"))
+#save.image(file=paste0("output/acceptability_ui-model-small", (if (final_model) "-final" else ""), ".RData"))
 

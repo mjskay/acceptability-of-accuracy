@@ -3,7 +3,7 @@
 #function for use with stat_summary that returns the median and
 #highest density interval of the data
 median_hdi = function(x, ...) {
-    coda:::HPDinterval.mcmc(x, ...) %>% 
+    HPDinterval(mcmc(x), ...) %>% 
         data.frame() %>% 
         select(ymin = lower, ymax = upper) %>% 
         cbind(y = median(x, ...))
