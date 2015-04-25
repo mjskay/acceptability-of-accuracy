@@ -54,11 +54,7 @@ src="https://i.creativecommons.org/l/by/4.0/88x31.png" /></a> <em>Matthew Kay ([
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">load</span>(<span class="dt">file=</span><span class="st">&quot;output/acceptability_ui-model-small-final.RData&quot;</span>)</code></pre>
 <h3 id="parameter-estimates">Parameter estimates</h3>
 <p>Let's plot some posterior parameter estimates. First, we extract the sample estimates for <code>b0</code>, <code>b</code>, and <code>alpha</code>:</p>
-<pre class="sourceCode r"><code class="sourceCode r">params =<span class="st"> </span><span class="kw">extract_samples</span>(best_model_chain, b0[application]) %&gt;%
-<span class="st">    </span><span class="kw">left_join</span>(<span class="kw">extract_samples</span>(best_model_chain, b[application])) %&gt;%
-<span class="st">    </span><span class="kw">left_join</span>(<span class="kw">extract_samples</span>(best_model_chain, alpha[application])) </code></pre>
-<pre><code>## Joining by: c(&quot;.sample&quot;, &quot;application&quot;)
-## Joining by: c(&quot;.sample&quot;, &quot;application&quot;)</code></pre>
+<pre class="sourceCode r"><code class="sourceCode r">params =<span class="st"> </span><span class="kw">extract_samples</span>(best_model_chain, <span class="kw">cbind</span>(b0, b, alpha)[application])</code></pre>
 <p>This gives us a pretty simple table of estimates. We can look at the first couple of entries to get an idea of its structure:</p>
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">head</span>(params)</code></pre>
 <table>

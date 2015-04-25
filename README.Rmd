@@ -62,9 +62,7 @@ Let's plot some posterior parameter estimates. First, we extract the
 sample estimates for `b0`, `b`, and `alpha`:
 
 ```{r extract_params, warnings=FALSE}
-params = extract_samples(best_model_chain, b0[application]) %>%
-    left_join(extract_samples(best_model_chain, b[application])) %>%
-    left_join(extract_samples(best_model_chain, alpha[application])) 
+params = extract_samples(best_model_chain, cbind(b0, b, alpha)[application])
 ```
 
 This gives us a pretty simple table of estimates. We can look at the

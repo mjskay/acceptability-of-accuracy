@@ -62,14 +62,7 @@ sample estimates for `b0`, `b`, and `alpha`:
 
 
 ```r
-params = extract_samples(best_model_chain, b0[application]) %>%
-    left_join(extract_samples(best_model_chain, b[application])) %>%
-    left_join(extract_samples(best_model_chain, alpha[application])) 
-```
-
-```
-## Joining by: c(".sample", "application")
-## Joining by: c(".sample", "application")
+params = extract_samples(best_model_chain, cbind(b0, b, alpha)[application])
 ```
 
 This gives us a pretty simple table of estimates. We can look at the
