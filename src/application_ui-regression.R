@@ -14,7 +14,7 @@ library(ggplot2)
 
 #------------------------------------------------------------------------------
 # THE MODEL
-final_model = TRUE
+final_model = FALSE
 
 model = metajags_model({
 	#core model
@@ -23,13 +23,11 @@ model = metajags_model({
 
 		# linear model with logit link
 		logit(mu[i]) <- b0[application[i]] +
-			#harmonic mean (M_-1, weighted F-measure)
-			equals(model_number, 1) * (b[application[i]]/(alpha[application[i]]/ppv[i] + (1-alpha[application[i]])/tpr[i])) +
-			#geometric mean (M_0, weighted G-measure)
-			equals(model_number, 2) * (b[application[i]]*(pow(ppv[i], alpha[application[i]]) * pow(tpr[i],(1-alpha[application[i]])))) +
-			#arithmetic mean (M_1) 
-			equals(model_number, 3) * (b[application[i]]*(alpha[application[i]]*ppv[i] + (1-alpha[application[i]])*tpr[i])) +
-			u[participant[i]]
+			#weighted power mean M_p
+			ifelse(p[application[i]] == 0,
+                b[application[i]] * ((ppv[i] ^ alpha[application[i]]) * (tpr[i] ^ (1 - alpha[application[i]]))),
+                b[application[i]] * (alpha[application[i]] * (ppv[i] ^ p[application[i]]) + (1 - alpha[application[i]]) * (tpr[i] ^ p[application[i]])) ^ one_over_p[application[i]]
+            ) + u[participant[i]]
   	}
 
 	#priors for each scenario
@@ -42,6 +40,13 @@ model = metajags_model({
 
 		#weight on ppv for mean of ppv and tpr
 		alpha[i] ~ dunif(0, 1)
+
+        #power mean
+        p[i] ~ dnorm(0, 0.25)
+        #hack to prevent divide by zero error in core model when p == 0
+        #(Note the core model doesn't actually use the value of one_over_p
+        #when p == 0, so we can set it to anything here). 
+        one_over_p[i] <- 1/ifelse(p[i] == 0, 1, p[i])
   	}
 
 	#priors for random effect: participant
@@ -50,13 +55,7 @@ model = metajags_model({
 	}
 
 	#hyperprior on sd of random effect
-	tau ~ dgamma(0.001,0.001)
-
-	#model comparison hyperprior
-	model_prob[1] <- 1/3
-	model_prob[2] <- 1/3
-	model_prob[3] <- 1/3
-	model_number ~ dcat(model_prob[])
+	tau ~ dgamma(0.001,0.001) 
 })
 
 
@@ -85,13 +84,14 @@ inits_list = ddply(df, ~ application, function(df) {
 	            alpha = b.ppv / (b.ppv + b.tpr)
         )
     }) %>%
-    select(-application)
+    select(-application) %>%
+    mutate(p = 1)   #inits are for power mean with p=1 (arithmetic mean)
 
 
 #------------------------------------------------------------------------------
 # FIT THE MODEL
 
-parameters = c("b0" , "b", "alpha", "model_number")  # The parameter(s) to be monitored.
+parameters = c("b0" , "b", "alpha", "p")  # The parameter(s) to be monitored.
 if (!final_model) {
     jags_fit = run.jags(model$code, data=data_list, monitor=parameters, initlist=inits_list, 
         method="parallel")
@@ -123,16 +123,12 @@ dev.off()
 # Convert coda-object coda_samples to matrix object for easier handling.
 # But note that this concatenates the different chains into one long chain.
 # Result is mcmc_chain[ stepIdx , paramIdx ]
-mcmc_chain = as.matrix(coda_samples)
+mcmc_chain = as.matrix(coda_samples) %>%
+    apply_prototypes(df)
 #drop other (often large) fit objects; no longer needed
 rm(jags_fit, coda_samples)
 
 #subset to preferred model
-model_number = mcmc_chain[,"model_number"]
-p_model = prop.table(table(model_number))
-best_model = which(p_model == max(p_model))
-best_model_chain = mcmc_chain[model_number == best_model,]  %>%
-    apply_prototypes(df)
 
 #save
 #save.image(file=paste0("output/acceptability_ui-model-small", (if (final_model) "-final" else ""), ".RData"))
