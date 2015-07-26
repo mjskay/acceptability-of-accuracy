@@ -39,22 +39,28 @@ src="https://i.creativecommons.org/l/by/4.0/88x31.png" /></a> <em>Matthew Kay ([
 <h2 id="libraries-needed-for-these-analyses">Libraries needed for these analyses</h2>
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(runjags)
 <span class="kw">library</span>(tidybayes)
-<span class="kw">library</span>(metajags)
 <span class="kw">library</span>(coda)
 <span class="kw">library</span>(lme4)
 <span class="kw">library</span>(plyr)
 <span class="kw">library</span>(dplyr)
 <span class="kw">library</span>(ggplot2)
-<span class="kw">library</span>(pander)</code></pre>
+<span class="kw">library</span>(pander)
+<span class="kw">library</span>(GGally)
+
+<span class="kw">memory.limit</span>(<span class="dv">8000</span>)</code></pre>
+<pre><code>## [1] 8000</code></pre>
 <p>Plus some helper functions in <a href="util.R" class="uri">util.R</a>:</p>
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="st">&quot;util.R&quot;</span>)</code></pre>
 <h2 id="example-model">Example model</h2>
 <h3 id="fitting-the-model">Fitting the model</h3>
 <p>Example code for fitting a model can be found in <a href="src/application_ui-regression.R" class="uri">src/application_ui-regression.R</a>. Since fitting the model takes some time, for the purposes of this example we will just load the fitted model, which has been saved in <code>src/output/acceptability_ui-model-small-final.RData</code>:</p>
-<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">load</span>(<span class="dt">file=</span><span class="st">&quot;output/acceptability_ui-model-small-final.RData&quot;</span>)</code></pre>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">load</span>(<span class="dt">file=</span><span class="st">&quot;output/acceptability_ui-model-stan-final.RData&quot;</span>)
+fit =<span class="st"> </span><span class="kw">apply_prototypes</span>(fit, df)</code></pre>
 <h3 id="parameter-estimates">Parameter estimates</h3>
-<p>Let's plot some posterior parameter estimates. First, we extract the sample estimates for <code>b0</code>, <code>b</code>, and <code>alpha</code>:</p>
-<pre class="sourceCode r"><code class="sourceCode r">params =<span class="st"> </span><span class="kw">extract_samples</span>(best_model_chain, <span class="kw">cbind</span>(b0, b, alpha)[application])</code></pre>
+<p>Let's plot some posterior parameter estimates. First, we extract the sample estimates for <code>b0</code>, <code>b</code>, <code>p</code>, and <code>alpha</code>:</p>
+<pre class="sourceCode r"><code class="sourceCode r">params =<span class="st"> </span><span class="kw">extract_samples</span>(fit, <span class="kw">cbind</span>(b, alpha_mu, alpha_v, p)[application])
+thresholds =<span class="st"> </span><span class="kw">extract_samples</span>(fit, b0[application,acceptable])
+sigmas =<span class="st"> </span><span class="kw">extract_samples</span>(fit, <span class="kw">cbind</span>(sigma_b, sigma_b0)[])</code></pre>
 <p>This gives us a pretty simple table of estimates. We can look at the first couple of entries to get an idea of its structure:</p>
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">head</span>(params)</code></pre>
 <table>
@@ -62,53 +68,60 @@ src="https://i.creativecommons.org/l/by/4.0/88x31.png" /></a> <em>Matthew Kay ([
 <tr class="header">
 <th align="center">.sample</th>
 <th align="center">application</th>
-<th align="center">b0</th>
+<th align="center">alpha_mu</th>
+<th align="center">alpha_v</th>
 <th align="center">b</th>
-<th align="center">alpha</th>
+<th align="center">p</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td align="center">1</td>
 <td align="center">alarm_police</td>
-<td align="center">-15.65</td>
-<td align="center">18.49</td>
-<td align="center">0.5639</td>
+<td align="center">0.4757</td>
+<td align="center">3.678</td>
+<td align="center">17.82</td>
+<td align="center">0.3606</td>
+</tr>
+<tr class="even">
+<td align="center">1</td>
+<td align="center">alarm_text_message</td>
+<td align="center">0.3576</td>
+<td align="center">1.944</td>
+<td align="center">18.55</td>
+<td align="center">-2.301</td>
+</tr>
+<tr class="odd">
+<td align="center">1</td>
+<td align="center">electricity</td>
+<td align="center">0.6023</td>
+<td align="center">4.433</td>
+<td align="center">15.82</td>
+<td align="center">-2.033</td>
+</tr>
+<tr class="even">
+<td align="center">1</td>
+<td align="center">location</td>
+<td align="center">0.5265</td>
+<td align="center">1.919</td>
+<td align="center">15.69</td>
+<td align="center">-2.733</td>
+</tr>
+<tr class="odd">
+<td align="center">2</td>
+<td align="center">alarm_police</td>
+<td align="center">0.5009</td>
+<td align="center">2.25</td>
+<td align="center">16.95</td>
+<td align="center">-0.286</td>
 </tr>
 <tr class="even">
 <td align="center">2</td>
-<td align="center">alarm_police</td>
-<td align="center">-16.58</td>
-<td align="center">20.07</td>
-<td align="center">0.5377</td>
-</tr>
-<tr class="odd">
-<td align="center">3</td>
-<td align="center">alarm_police</td>
-<td align="center">-17.05</td>
-<td align="center">19.83</td>
-<td align="center">0.4827</td>
-</tr>
-<tr class="even">
-<td align="center">4</td>
-<td align="center">alarm_police</td>
-<td align="center">-16.86</td>
-<td align="center">19.22</td>
-<td align="center">0.5002</td>
-</tr>
-<tr class="odd">
-<td align="center">5</td>
-<td align="center">alarm_police</td>
-<td align="center">-16.2</td>
-<td align="center">18.64</td>
-<td align="center">0.4509</td>
-</tr>
-<tr class="even">
-<td align="center">6</td>
-<td align="center">alarm_police</td>
-<td align="center">-16.18</td>
-<td align="center">17.97</td>
-<td align="center">0.5414</td>
+<td align="center">alarm_text_message</td>
+<td align="center">0.4082</td>
+<td align="center">1.186</td>
+<td align="center">17.59</td>
+<td align="center">-1.747</td>
 </tr>
 </tbody>
 </table>
@@ -116,129 +129,98 @@ src="https://i.creativecommons.org/l/by/4.0/88x31.png" /></a> <em>Matthew Kay ([
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(params, <span class="kw">aes</span>(<span class="dt">x=</span>application, <span class="dt">y=</span>b)) +
 <span class="st">    </span><span class="kw">geom_hline</span>(<span class="dt">yintercept=</span><span class="dv">0</span>, <span class="dt">lty=</span><span class="st">&quot;dashed&quot;</span>)</code></pre>
 <div class="figure">
-<img src="figure/params_plot-1.png" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
+<img src="figure/params_plot-1.svg" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
 </div>
-<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(params, <span class="kw">aes</span>(<span class="dt">x=</span>application, <span class="dt">y=</span>b0)) +
-<span class="st">    </span><span class="kw">geom_hline</span>(<span class="dt">yintercept=</span><span class="dv">0</span>, <span class="dt">lty=</span><span class="st">&quot;dashed&quot;</span>)</code></pre>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(thresholds, <span class="kw">aes</span>(<span class="dt">x=</span>acceptable, <span class="dt">y=</span>b0)) +
+<span class="st">    </span><span class="kw">geom_hline</span>(<span class="dt">yintercept=</span><span class="dv">0</span>, <span class="dt">lty=</span><span class="st">&quot;dashed&quot;</span>) +
+<span class="st">    </span><span class="kw">facet_wrap</span>(~application) </code></pre>
 <div class="figure">
-<img src="figure/params_plot-2.png" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
+<img src="figure/params_plot-2.svg" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
 </div>
-<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(params, <span class="kw">aes</span>(<span class="dt">x=</span>application, <span class="dt">y=</span>alpha)) +
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(params, <span class="kw">aes</span>(<span class="dt">x=</span>application, <span class="dt">y=</span>p)) +
+<span class="st">    </span><span class="kw">geom_hline</span>(<span class="dt">yintercept=</span>-<span class="dv">1</span>, <span class="dt">lty=</span><span class="st">&quot;dashed&quot;</span>)</code></pre>
+<div class="figure">
+<img src="figure/params_plot-3.svg" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
+</div>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(params, <span class="kw">aes</span>(<span class="dt">x=</span>application, <span class="dt">y=</span>alpha_mu)) +
 <span class="st">    </span><span class="kw">geom_hline</span>(<span class="dt">yintercept=</span><span class="fl">0.5</span>, <span class="dt">lty=</span><span class="st">&quot;dashed&quot;</span>) +
 <span class="st">    </span><span class="kw">ylim</span>(<span class="dv">0</span>, <span class="dv">1</span>)</code></pre>
 <div class="figure">
-<img src="figure/params_plot-3.png" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
+<img src="figure/params_plot-4.svg" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
+</div>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(params, <span class="kw">aes</span>(<span class="dt">x=</span>application, <span class="dt">y=</span>alpha_v))</code></pre>
+<div class="figure">
+<img src="figure/params_plot-5.svg" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
+</div>
+<pre class="sourceCode r"><code class="sourceCode r">params %&lt;&gt;%<span class="st"> </span><span class="kw">mutate</span>(<span class="dt">alpha_var =</span> alpha_mu *<span class="st"> </span>(<span class="dv">1</span> -<span class="st"> </span>alpha_mu)/(alpha_v +<span class="st"> </span><span class="dv">1</span>))</code></pre>
+<pre><code>## Error in eval(expr, envir, enclos): could not find function &quot;%&lt;&gt;%&quot;</code></pre>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(params, <span class="kw">aes</span>(<span class="dt">x=</span>application, <span class="dt">y=</span>alpha_var))</code></pre>
+<pre><code>## Error in eval(expr, envir, enclos): object &#39;alpha_var&#39; not found</code></pre>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(sigmas, <span class="kw">aes</span>(<span class="dt">x=</span><span class="dv">1</span>, <span class="dt">y=</span>sigma_b))</code></pre>
+<div class="figure">
+<img src="figure/params_plot-6.svg" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
+</div>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(sigmas, <span class="kw">aes</span>(<span class="dt">x=</span><span class="dv">1</span>, <span class="dt">y=</span>sigma_b0))</code></pre>
+<div class="figure">
+<img src="figure/params_plot-7.svg" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
+</div>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggpairs</span>(<span class="kw">log</span>(<span class="kw">cbind</span>(<span class="kw">select</span>(sigmas, -.sample))),
+    <span class="dt">lower =</span> <span class="kw">list</span>(<span class="dt">continuous =</span> <span class="st">&quot;density&quot;</span>))</code></pre>
+<div class="figure">
+<img src="figure/params_plot-8.svg" alt="plot of chunk params_plot" /><p class="caption">plot of chunk params_plot</p>
 </div>
 <h3 id="differences-in-alpha">Differences in alpha</h3>
-<p>We can also examine the posterior difference in alpha between each condition. First we extract the samples for alpha, this time in a wide format to facilitate comparison:</p>
-<pre class="sourceCode r"><code class="sourceCode r">alpha =<span class="st"> </span><span class="kw">extract_samples</span>(best_model_chain, alpha[application] |<span class="st"> </span>application)</code></pre>
-<p>Again, let's see the first couple of entries to get an idea of its structure:</p>
-<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">head</span>(alpha)</code></pre>
-<table>
-<thead>
-<tr class="header">
-<th align="center">.sample</th>
-<th align="center">alarm_police</th>
-<th align="center">alarm_text_message</th>
-<th align="center">electricity</th>
-<th align="center">location</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="center">1</td>
-<td align="center">0.5639</td>
-<td align="center">0.2988</td>
-<td align="center">0.5119</td>
-<td align="center">0.3859</td>
-</tr>
-<tr class="even">
-<td align="center">2</td>
-<td align="center">0.5377</td>
-<td align="center">0.3567</td>
-<td align="center">0.4585</td>
-<td align="center">0.577</td>
-</tr>
-<tr class="odd">
-<td align="center">3</td>
-<td align="center">0.4827</td>
-<td align="center">0.3135</td>
-<td align="center">0.4513</td>
-<td align="center">0.4802</td>
-</tr>
-<tr class="even">
-<td align="center">4</td>
-<td align="center">0.5002</td>
-<td align="center">0.3772</td>
-<td align="center">0.4969</td>
-<td align="center">0.5148</td>
-</tr>
-<tr class="odd">
-<td align="center">5</td>
-<td align="center">0.4509</td>
-<td align="center">0.2896</td>
-<td align="center">0.4851</td>
-<td align="center">0.5001</td>
-</tr>
-<tr class="even">
-<td align="center">6</td>
-<td align="center">0.5414</td>
-<td align="center">0.3805</td>
-<td align="center">0.5025</td>
-<td align="center">0.5161</td>
-</tr>
-</tbody>
-</table>
-<p>Now, for every pair of applications, let's get the posterior distribution of their difference in alpha:</p>
-<pre class="sourceCode r"><code class="sourceCode r">alpha_comparisons =<span class="st"> </span><span class="kw">ldply</span>(<span class="kw">combn</span>(<span class="kw">levels</span>(df$application), <span class="dv">2</span>, <span class="dt">simplify=</span><span class="ot">FALSE</span>), 
-    function(applications) {
-        <span class="kw">data.frame</span>(
-            <span class="dt">applications =</span> <span class="kw">paste</span>(applications, <span class="dt">collapse=</span><span class="st">&quot; - &quot;</span>), 
-            <span class="dt">alpha_difference =</span> alpha[[applications[[<span class="dv">1</span>]]]] -<span class="st"> </span>alpha[[applications[[<span class="dv">2</span>]]]]
-        ) 
-    })</code></pre>
+<p>We can also examine the posterior difference in alpha between each condition. For every pair of applications, let's get the posterior distribution of their difference in alpha:</p>
+<pre class="sourceCode r"><code class="sourceCode r">alpha_comparisons =<span class="st"> </span><span class="kw">compare_levels</span>(params, alpha_mu, <span class="dt">by=</span>application)</code></pre>
 <p>Which looks like this:</p>
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">head</span>(alpha_comparisons)</code></pre>
 <table>
 <thead>
 <tr class="header">
-<th align="center">applications</th>
-<th align="center">alpha_difference</th>
+<th align="center">.sample</th>
+<th align="center">application</th>
+<th align="center">alpha_mu</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="center">alarm_police - alarm_text_message</td>
-<td align="center">0.2651</td>
+<td align="center">1</td>
+<td align="center">alarm_text_message - alarm_police</td>
+<td align="center">-0.1181</td>
 </tr>
 <tr class="even">
-<td align="center">alarm_police - alarm_text_message</td>
-<td align="center">0.181</td>
+<td align="center">2</td>
+<td align="center">alarm_text_message - alarm_police</td>
+<td align="center">-0.09262</td>
 </tr>
 <tr class="odd">
-<td align="center">alarm_police - alarm_text_message</td>
-<td align="center">0.1692</td>
+<td align="center">3</td>
+<td align="center">alarm_text_message - alarm_police</td>
+<td align="center">-0.2586</td>
 </tr>
 <tr class="even">
-<td align="center">alarm_police - alarm_text_message</td>
-<td align="center">0.123</td>
+<td align="center">4</td>
+<td align="center">alarm_text_message - alarm_police</td>
+<td align="center">-0.2536</td>
 </tr>
 <tr class="odd">
-<td align="center">alarm_police - alarm_text_message</td>
-<td align="center">0.1614</td>
+<td align="center">5</td>
+<td align="center">alarm_text_message - alarm_police</td>
+<td align="center">-0.05727</td>
 </tr>
 <tr class="even">
-<td align="center">alarm_police - alarm_text_message</td>
-<td align="center">0.1609</td>
+<td align="center">6</td>
+<td align="center">alarm_text_message - alarm_police</td>
+<td align="center">-0.02978</td>
 </tr>
 </tbody>
 </table>
 <p>Finally, we can plot the estimated differences:</p>
-<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(alpha_comparisons, <span class="kw">aes</span>(<span class="dt">x=</span>applications, <span class="dt">y=</span>alpha_difference)) +<span class="st"> </span>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggposterior</span>(alpha_comparisons, <span class="kw">aes</span>(<span class="dt">x=</span>application, <span class="dt">y=</span>alpha_mu)) +<span class="st"> </span>
 <span class="st">    </span><span class="kw">geom_hline</span>(<span class="dt">yintercept=</span><span class="dv">0</span>, <span class="dt">lty=</span><span class="st">&quot;dashed&quot;</span>) +
-<span class="st">    </span><span class="kw">ylim</span>(-<span class="fl">0.5</span>, <span class="fl">0.5</span>)</code></pre>
+<span class="st">    </span><span class="kw">ylim</span>(-<span class="fl">0.6</span>, <span class="fl">0.6</span>)</code></pre>
 <div class="figure">
-<img src="figure/alpha_comparison_plot-1.png" alt="plot of chunk alpha_comparison_plot" /><p class="caption">plot of chunk alpha_comparison_plot</p>
+<img src="figure/alpha_comparison_plot-1.svg" alt="plot of chunk alpha_comparison_plot" /><p class="caption">plot of chunk alpha_comparison_plot</p>
 </div>
 <h2 id="citing-this-work">Citing this work</h2>
 <p>Please cite the CHI paper above.</p>

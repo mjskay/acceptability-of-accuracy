@@ -4,7 +4,7 @@
 ###############################################################################
 library(runjags)
 library(tidybayes)
-library(metajags)
+library(metabayes)
 library(coda)
 library(lme4)
 library(plyr)
@@ -16,24 +16,37 @@ library(ggplot2)
 # THE MODEL
 final_model = FALSE
 
-model = metajags_model({
+model = metajags({
 	#core model
 	for (i in 1:n) {
-    	acceptable_b[i] ~ dbern(mu[i])
-
-		# linear model with logit link
-		logit(mu[i]) <- b0[application[i]] +
+		# linear model
+		mu[i] <- 
 			#weighted power mean M_p
 			ifelse(p[application[i]] == 0,
                 b[application[i]] * ((ppv[i] ^ alpha[application[i]]) * (tpr[i] ^ (1 - alpha[application[i]]))),
                 b[application[i]] * (alpha[application[i]] * (ppv[i] ^ p[application[i]]) + (1 - alpha[application[i]]) * (tpr[i] ^ p[application[i]])) ^ one_over_p[application[i]]
-            ) + u[participant[i]]
+            ) + u[participant[i]]   #participant effect
+        
+		# logits for thresholds between adjacent levels
+        logit(Q[i,1]) <- b0[application[i],1] - mu[i] 
+        P[i,1] <- Q[i,1]
+        for (j in 2:(n_acceptable - 1)) {
+            logit(Q[i,j]) <- b0[application[i],j] - mu[i]
+            P[i,j] <- Q[i,j] - Q[i,j-1]
+        }
+        P[i,n_acceptable] <- 1 - Q[i,n_acceptable - 1] 
+
+        #observation
+        acceptable[i] ~ dcat(P[i,])
   	}
 
 	#priors for each scenario
   	for (i in 1:n_application) {
-		#intercept
-	  	b0[i] ~ dnorm(0, 1.0E-3)
+        #priors for thresholds
+        for (j in 1:(n_acceptable - 1)) {
+	            b0_unsorted[i,j] ~ dnorm(0, 1.0E-3)
+        }
+        b0[i,1:(n_acceptable - 1)] <- sort(b0_unsorted[i,1:(n_acceptable - 1)])
 
 		#slope of linear model
     	b[i] ~ dnorm(0, 1.0E-3)
@@ -65,40 +78,50 @@ source("src/application_ui-load_data.R")
 
 #build data list
 data_list = df %>%
-    select(acceptable_b, application, participant, tpr, ppv) %>%
+    select(acceptable, application, participant, tpr, ppv) %>%
     compose_data()
 
 #------------------------------------------------------------------------------
 # INTIALIZE THE CHAINS.
 
-#get maximum likelihood estimates of model parameters from the p=1 (arithmetic mean)
-#version of the model (since it is easiest to calculate) using traditional mixed-effects
+#get maximum likelihood estimates of some model parameters from the p=1 (arithmetic mean)
+#version of the model (since it is easiest to calculate) using ordinal
 #logistic regression. We will use these as starting points for the model.
-inits_list = ddply(df, ~ application, function(df) { 
-        m = glmer(acceptable_b ~ ppv + tpr + (1|participant), data=df, family=binomial)
-        b.ppv = fixef(m)["ppv"]
-        b.tpr = fixef(m)["tpr"]
+models = dlply(df, ~ application, function(df) {
+        clmm(acceptable ~ ppv + tpr + (1|participant), data=df)
+    })
+inits_list = ldply(models, function(m) {
+        b.ppv = coef(m)["ppv"]
+        b.tpr = coef(m)["tpr"]
         data.frame(
-	            b0 = fixef(m)["(Intercept)"],
-	            b = b.ppv + b.tpr,
-	            alpha = b.ppv / (b.ppv + b.tpr)
+            b = b.ppv + b.tpr,
+            alpha = b.ppv / (b.ppv + b.tpr),
+            p = 1   #inits are for power mean with p=1 (arithmetic mean)
         )
     }) %>%
     select(-application) %>%
-    mutate(p = 1)   #inits are for power mean with p=1 (arithmetic mean)
+    as.list()
+
+#inits_list=list()
+inits_list$b0_unsorted = laply(models, function(m) m$alpha)
+
 
 
 #------------------------------------------------------------------------------
 # FIT THE MODEL
 
+inits_function = function(chain) {
+    c(inits_list, .RNG.name = c("base::Wichmann-Hill", "base::Marsaglia-Multicarry", "base::Super-Duper", "base::Mersenne-Twister")[[chain]])
+}
+
 parameters = c("b0" , "b", "alpha", "p")  # The parameter(s) to be monitored.
 if (!final_model) {
-    jags_fit = run.jags(model$code, data=data_list, monitor=parameters, initlist=inits_list, 
+    jags_fit = run.jags(code(model), data=data_list, monitor=parameters, inits=list(inits_list, inits_list), modules="glm",
         method="parallel")
 } else {
-#    jags_fit = autorun.jags(model$code, data=data_list, monitor=parameters, initlist=inits_list,
+#    jags_fit = autorun.jags(code(model), data=data_list, monitor=parameters, initlist=inits_list,
 #        method="parallel", thin.sample=TRUE)    
-    jags_fit = run.jags(model$code, data=data_list, monitor=parameters, initlist=inits_list,
+    jags_fit = run.jags(code(model), data=data_list, monitor=parameters, initlist=inits_list,
 	    adapt=1000, burnin = 50000, sample = 10000, thin=15,
         method="parallel")
 }

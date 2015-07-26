@@ -22,7 +22,7 @@ something cool with this work, we'd love to hear from you!
 ## Libraries needed for these analyses
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(cache=TRUE)           #default code chunk options
+knitr::opts_chunk$set(cache=TRUE, dev="svg")           #default code chunk options
 pander::panderOptions("table.split.table", Inf)     #don't split wide tables in output
 pander::panderOptions("table.style", "rmarkdown")   #table style that's supported by github
 ```
@@ -30,13 +30,15 @@ pander::panderOptions("table.style", "rmarkdown")   #table style that's supporte
 ```{r libraries, message=FALSE, warning=FALSE, cache=FALSE}
 library(runjags)
 library(tidybayes)
-library(metajags)
 library(coda)
 library(lme4)
 library(plyr)
 library(dplyr)
 library(ggplot2)
 library(pander)
+library(GGally)
+
+memory.limit(8000)
 ```
 
 Plus some helper functions in [util.R](util.R):
@@ -53,16 +55,19 @@ the model takes some time, for the purposes of this example we will just load th
 which has been saved in `src/output/acceptability_ui-model-small-final.RData`:
 
 ```{r load_model}
-load(file="output/acceptability_ui-model-small-final.RData")
+load(file="output/acceptability_ui-model-stan-final.RData")
+fit = apply_prototypes(fit, df)
 ```
 
 ### Parameter estimates
 
 Let's plot some posterior parameter estimates. First, we extract the 
-sample estimates for `b0`, `b`, and `alpha`:
+sample estimates for `b0`, `b`, `p`, and `alpha`:
 
 ```{r extract_params, warnings=FALSE}
-params = extract_samples(best_model_chain, cbind(b0, b, alpha)[application])
+params = extract_samples(fit, cbind(b, alpha_mu, alpha_v, p)[application])
+thresholds = extract_samples(fit, b0[application,acceptable])
+sigmas = extract_samples(fit, cbind(sigma_b, sigma_b0)[])
 ```
 
 This gives us a pretty simple table of estimates. We can look at the
@@ -82,44 +87,43 @@ Now we'll plot each parameter in turn, with some useful reference lines:
 ggposterior(params, aes(x=application, y=b)) +
     geom_hline(yintercept=0, lty="dashed")
 
-ggposterior(params, aes(x=application, y=b0)) +
-    geom_hline(yintercept=0, lty="dashed")
+ggposterior(thresholds, aes(x=acceptable, y=b0)) +
+    geom_hline(yintercept=0, lty="dashed") +
+    facet_wrap(~application) 
 
-ggposterior(params, aes(x=application, y=alpha)) +
+ggposterior(params, aes(x=application, y=p)) +
+    geom_hline(yintercept=-1, lty="dashed")
+
+ggposterior(params, aes(x=application, y=alpha_mu)) +
     geom_hline(yintercept=0.5, lty="dashed") +
     ylim(0, 1)
+
+ggposterior(params, aes(x=application, y=alpha_v))
+
+params %<>% mutate(alpha_var = alpha_mu * (1 - alpha_mu)/(alpha_v + 1))
+
+ggposterior(params, aes(x=application, y=alpha_var))
+
+
+ggposterior(sigmas, aes(x=1, y=sigma_b))
+
+ggposterior(sigmas, aes(x=1, y=sigma_b0))
+
+ggpairs(log(cbind(select(sigmas, -.sample))),
+    lower = list(continuous = "density"))
+
+
+
 ```
 
 ### Differences in alpha
 
-We can also examine the posterior difference in alpha between each condition. First
-we extract the samples for alpha, this time in a wide format to facilitate comparison:
-
-```{r extract_alpha}
-alpha = extract_samples(best_model_chain, alpha[application] | application)
-```
-
-Again, let's see the first couple of entries to get an idea of its structure:
-
-```{r alpha_table_1, eval=FALSE}
-head(alpha)
-```
-
-```{r alpha_table_2, echo=FALSE, results='asis'}
-pander(head(alpha))
-```
-
-Now, for every pair of applications, let's get the posterior distribution
-of their difference in alpha:
+We can also examine the posterior difference in alpha between each condition. For 
+every pair of applications, let's get the posterior distribution of their 
+difference in alpha:
 
 ```{r alpha_diff}
-alpha_comparisons = ldply(combn(levels(df$application), 2, simplify=FALSE), 
-    function(applications) {
-        data.frame(
-            applications = paste(applications, collapse=" - "), 
-            alpha_difference = alpha[[applications[[1]]]] - alpha[[applications[[2]]]]
-        ) 
-    })
+alpha_comparisons = compare_levels(params, alpha_mu, by=application)
 ```
 
 Which looks like this:
@@ -135,9 +139,9 @@ pander(head(alpha_comparisons))
 Finally, we can plot the estimated differences:
 
 ```{r alpha_comparison_plot}
-ggposterior(alpha_comparisons, aes(x=applications, y=alpha_difference)) + 
+ggposterior(alpha_comparisons, aes(x=application, y=alpha_mu)) + 
     geom_hline(yintercept=0, lty="dashed") +
-    ylim(-0.5, 0.5)
+    ylim(-0.6, 0.6)
 ```
 
 ## Citing this work

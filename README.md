@@ -27,13 +27,19 @@ something cool with this work, we'd love to hear from you!
 ```r
 library(runjags)
 library(tidybayes)
-library(metajags)
 library(coda)
 library(lme4)
 library(plyr)
 library(dplyr)
 library(ggplot2)
 library(pander)
+library(GGally)
+
+memory.limit(8000)
+```
+
+```
+## [1] 8000
 ```
 
 Plus some helper functions in [util.R](util.R):
@@ -52,17 +58,20 @@ which has been saved in `src/output/acceptability_ui-model-small-final.RData`:
 
 
 ```r
-load(file="output/acceptability_ui-model-small-final.RData")
+load(file="output/acceptability_ui-model-stan-final.RData")
+fit = apply_prototypes(fit, df)
 ```
 
 ### Parameter estimates
 
 Let's plot some posterior parameter estimates. First, we extract the 
-sample estimates for `b0`, `b`, and `alpha`:
+sample estimates for `b0`, `b`, `p`, and `alpha`:
 
 
 ```r
-params = extract_samples(best_model_chain, cbind(b0, b, alpha)[application])
+params = extract_samples(fit, cbind(b, alpha_mu, alpha_v, p)[application])
+thresholds = extract_samples(fit, b0[application,acceptable])
+sigmas = extract_samples(fit, cbind(sigma_b, sigma_b0)[])
 ```
 
 This gives us a pretty simple table of estimates. We can look at the
@@ -74,14 +83,14 @@ head(params)
 ```
 
 
-|  .sample  |  application  |   b0   |   b   |  alpha  |
-|:---------:|:-------------:|:------:|:-----:|:-------:|
-|     1     | alarm_police  | -15.65 | 18.49 | 0.5639  |
-|     2     | alarm_police  | -16.58 | 20.07 | 0.5377  |
-|     3     | alarm_police  | -17.05 | 19.83 | 0.4827  |
-|     4     | alarm_police  | -16.86 | 19.22 | 0.5002  |
-|     5     | alarm_police  | -16.2  | 18.64 | 0.4509  |
-|     6     | alarm_police  | -16.18 | 17.97 | 0.5414  |
+|  .sample  |    application     |  alpha_mu  |  alpha_v  |   b   |   p    |
+|:---------:|:------------------:|:----------:|:---------:|:-----:|:------:|
+|     1     |    alarm_police    |   0.4757   |   3.678   | 17.82 | 0.3606 |
+|     1     | alarm_text_message |   0.3576   |   1.944   | 18.55 | -2.301 |
+|     1     |    electricity     |   0.6023   |   4.433   | 15.82 | -2.033 |
+|     1     |      location      |   0.5265   |   1.919   | 15.69 | -2.733 |
+|     2     |    alarm_police    |   0.5009   |   2.25    | 16.95 | -0.286 |
+|     2     | alarm_text_message |   0.4082   |   1.186   | 17.59 | -1.747 |
 
 Now we'll plot each parameter in turn, with some useful reference lines:
 
@@ -91,62 +100,81 @@ ggposterior(params, aes(x=application, y=b)) +
     geom_hline(yintercept=0, lty="dashed")
 ```
 
-![plot of chunk params_plot](figure/params_plot-1.png) 
+![plot of chunk params_plot](figure/params_plot-1.svg) 
 
 ```r
-ggposterior(params, aes(x=application, y=b0)) +
-    geom_hline(yintercept=0, lty="dashed")
+ggposterior(thresholds, aes(x=acceptable, y=b0)) +
+    geom_hline(yintercept=0, lty="dashed") +
+    facet_wrap(~application) 
 ```
 
-![plot of chunk params_plot](figure/params_plot-2.png) 
+![plot of chunk params_plot](figure/params_plot-2.svg) 
 
 ```r
-ggposterior(params, aes(x=application, y=alpha)) +
+ggposterior(params, aes(x=application, y=p)) +
+    geom_hline(yintercept=-1, lty="dashed")
+```
+
+![plot of chunk params_plot](figure/params_plot-3.svg) 
+
+```r
+ggposterior(params, aes(x=application, y=alpha_mu)) +
     geom_hline(yintercept=0.5, lty="dashed") +
     ylim(0, 1)
 ```
 
-![plot of chunk params_plot](figure/params_plot-3.png) 
+![plot of chunk params_plot](figure/params_plot-4.svg) 
+
+```r
+ggposterior(params, aes(x=application, y=alpha_v))
+```
+
+![plot of chunk params_plot](figure/params_plot-5.svg) 
+
+```r
+params %<>% mutate(alpha_var = alpha_mu * (1 - alpha_mu)/(alpha_v + 1))
+```
+
+```
+## Error in eval(expr, envir, enclos): could not find function "%<>%"
+```
+
+```r
+ggposterior(params, aes(x=application, y=alpha_var))
+```
+
+```
+## Error in eval(expr, envir, enclos): object 'alpha_var' not found
+```
+
+```r
+ggposterior(sigmas, aes(x=1, y=sigma_b))
+```
+
+![plot of chunk params_plot](figure/params_plot-6.svg) 
+
+```r
+ggposterior(sigmas, aes(x=1, y=sigma_b0))
+```
+
+![plot of chunk params_plot](figure/params_plot-7.svg) 
+
+```r
+ggpairs(log(cbind(select(sigmas, -.sample))),
+    lower = list(continuous = "density"))
+```
+
+![plot of chunk params_plot](figure/params_plot-8.svg) 
 
 ### Differences in alpha
 
-We can also examine the posterior difference in alpha between each condition. First
-we extract the samples for alpha, this time in a wide format to facilitate comparison:
+We can also examine the posterior difference in alpha between each condition. For 
+every pair of applications, let's get the posterior distribution of their 
+difference in alpha:
 
 
 ```r
-alpha = extract_samples(best_model_chain, alpha[application] | application)
-```
-
-Again, let's see the first couple of entries to get an idea of its structure:
-
-
-```r
-head(alpha)
-```
-
-
-|  .sample  |  alarm_police  |  alarm_text_message  |  electricity  |  location  |
-|:---------:|:--------------:|:--------------------:|:-------------:|:----------:|
-|     1     |     0.5639     |        0.2988        |    0.5119     |   0.3859   |
-|     2     |     0.5377     |        0.3567        |    0.4585     |   0.577    |
-|     3     |     0.4827     |        0.3135        |    0.4513     |   0.4802   |
-|     4     |     0.5002     |        0.3772        |    0.4969     |   0.5148   |
-|     5     |     0.4509     |        0.2896        |    0.4851     |   0.5001   |
-|     6     |     0.5414     |        0.3805        |    0.5025     |   0.5161   |
-
-Now, for every pair of applications, let's get the posterior distribution
-of their difference in alpha:
-
-
-```r
-alpha_comparisons = ldply(combn(levels(df$application), 2, simplify=FALSE), 
-    function(applications) {
-        data.frame(
-            applications = paste(applications, collapse=" - "), 
-            alpha_difference = alpha[[applications[[1]]]] - alpha[[applications[[2]]]]
-        ) 
-    })
+alpha_comparisons = compare_levels(params, alpha_mu, by=application)
 ```
 
 Which looks like this:
@@ -157,25 +185,25 @@ head(alpha_comparisons)
 ```
 
 
-|           applications            |  alpha_difference  |
-|:---------------------------------:|:------------------:|
-| alarm_police - alarm_text_message |       0.2651       |
-| alarm_police - alarm_text_message |       0.181        |
-| alarm_police - alarm_text_message |       0.1692       |
-| alarm_police - alarm_text_message |       0.123        |
-| alarm_police - alarm_text_message |       0.1614       |
-| alarm_police - alarm_text_message |       0.1609       |
+|  .sample  |            application            |  alpha_mu  |
+|:---------:|:---------------------------------:|:----------:|
+|     1     | alarm_text_message - alarm_police |  -0.1181   |
+|     2     | alarm_text_message - alarm_police |  -0.09262  |
+|     3     | alarm_text_message - alarm_police |  -0.2586   |
+|     4     | alarm_text_message - alarm_police |  -0.2536   |
+|     5     | alarm_text_message - alarm_police |  -0.05727  |
+|     6     | alarm_text_message - alarm_police |  -0.02978  |
 
 Finally, we can plot the estimated differences:
 
 
 ```r
-ggposterior(alpha_comparisons, aes(x=applications, y=alpha_difference)) + 
+ggposterior(alpha_comparisons, aes(x=application, y=alpha_mu)) + 
     geom_hline(yintercept=0, lty="dashed") +
-    ylim(-0.5, 0.5)
+    ylim(-0.6, 0.6)
 ```
 
-![plot of chunk alpha_comparison_plot](figure/alpha_comparison_plot-1.png) 
+![plot of chunk alpha_comparison_plot](figure/alpha_comparison_plot-1.svg) 
 
 ## Citing this work
 
